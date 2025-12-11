@@ -1,0 +1,10 @@
+[package]
+name = "embedded-storage-sim"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+embedded-storage = "0.3.1"
+embedded-storage-async = "0.4.1"
+fugit = "0.3.9"
+rand = "0.9.2"
