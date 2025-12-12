@@ -2,7 +2,7 @@ use std::convert::Infallible;
 
 use crate::{SimulatedNorFlash, Transaction};
 
-use embedded_storage::nor_flash::{ErrorType, NorFlash, ReadNorFlash};
+use embedded_storage::nor_flash::{ErrorType, MultiwriteNorFlash, NorFlash, ReadNorFlash};
 use rand::Rng as _;
 
 impl<O, const RS: usize, const WS: usize, const ES: usize> ErrorType
@@ -118,3 +118,5 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> NorFlash
         Ok(())
     }
 }
+
+impl MultiwriteNorFlash for SimulatedNorFlash {}

@@ -1,4 +1,4 @@
-use embedded_storage_async::nor_flash::{NorFlash, ReadNorFlash};
+use embedded_storage_async::nor_flash::{MultiwriteNorFlash, NorFlash, ReadNorFlash};
 use rand::SeedableRng;
 
 #[derive(Clone, Copy, Debug)]
@@ -249,6 +249,15 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> NorFlash
     async fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         embedded_storage::nor_flash::NorFlash::write(self, offset, bytes)
     }
+}
+
+impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> MultiwriteNorFlash
+    for SimulatedNorFlash<O, RS, WS, ES>
+{
+}
+impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> MultiwriteNorFlash
+    for &mut SimulatedNorFlash<O, RS, WS, ES>
+{
 }
 
 pub type SimulatedNorFlashR1W1E4k<O> = SimulatedNorFlash<O, 1, 1, 4096>;
