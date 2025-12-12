@@ -8,3 +8,13 @@ embedded-storage = "0.3.1"
 embedded-storage-async = "0.4.1"
 fugit = "0.3.9"
 rand = "0.9.2"
+
+sequential-storage = { git = "https://github.com/tweedegolf/sequential-storage.git", branch = "master", optional = true }
+eframe = { version = "0.33.3", optional = true, features = ["wgpu"] }
+futures = { version = "0.3.31", optional = true, features = ["std"] }
+anyhow = { version = "1.0.100", optional = true }
+
+[features]
+default = ["sequential-storage", "gui"]
+sequential-storage = ["dep:sequential-storage"]
+gui = ["dep:eframe", "dep:futures", "dep:anyhow", "sequential-storage"]
