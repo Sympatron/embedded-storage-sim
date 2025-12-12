@@ -310,3 +310,38 @@ impl<O> From<SimulatedNorFlashR4W4E4k<O>> for AnySimulatedNorFlash<O> {
         AnySimulatedNorFlash::R4W4E4k(flash)
     }
 }
+
+#[derive(Clone, Default, Debug)]
+pub struct FlashSnapshot {
+    pub data: Option<Vec<u8>>,
+    pub page_cycles: Vec<u32>,
+    pub bytes_read: usize,
+    pub bytes_written: usize,
+    pub pages_erased: usize,
+    pub total_accesses: usize,
+    pub total_operations: usize,
+    pub transactions_len: usize,
+    pub last_operation: Option<String>,
+}
+
+impl<O: Clone + ToString, const RS: usize, const WS: usize, const ES: usize>
+    SimulatedNorFlash<O, RS, WS, ES>
+{
+    pub fn snapshot(&self, with_data: bool) -> FlashSnapshot {
+        FlashSnapshot {
+            data: if with_data {
+                Some(self.data.clone())
+            } else {
+                None
+            },
+            page_cycles: self.page_erase_cycles().to_vec(),
+            bytes_read: self.bytes_read(),
+            bytes_written: self.bytes_written(),
+            pages_erased: self.pages_erased(),
+            total_accesses: self.total_accesses(),
+            total_operations: self.total_operations(),
+            transactions_len: self.transactions().len(),
+            last_operation: self.current_operation.as_ref().map(|op| op.to_string()),
+        }
+    }
+}
