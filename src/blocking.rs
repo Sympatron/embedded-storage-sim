@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use crate::{SimulatedNorFlash, Transaction};
+use crate::{SimulatedNorFlash, Transaction, TransactionLogLevel};
 
 use embedded_storage::nor_flash::{ErrorType, MultiwriteNorFlash, NorFlash, ReadNorFlash};
 use rand::Rng as _;
@@ -27,13 +27,18 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> ReadNorFlash
             *byte &= !self.stuck_at_0_bits[offset as usize + i];
         }
 
-        self.transactions.push(Transaction::read(
-            self.log_level,
-            offset,
-            bytes.len(),
-            bytes,
-            self.current_operation.clone(),
-        ));
+        match self.log_level {
+            TransactionLogLevel::None | TransactionLogLevel::Minimal => {}
+            _ => {
+                self.transactions.push(Transaction::read(
+                    self.log_level,
+                    offset,
+                    bytes.len(),
+                    bytes,
+                    self.current_operation.clone(),
+                ));
+            }
+        }
 
         self.read += bytes.len();
         self.read_accesses += 1;
@@ -78,13 +83,15 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> NorFlash
                 }
             }
         }
-        self.transactions.push(Transaction::erase(
-            self.log_level,
-            from,
-            to,
-            &self.data[range.clone()],
-            self.current_operation.clone(),
-        ));
+        if self.log_level != TransactionLogLevel::None {
+            self.transactions.push(Transaction::erase(
+                self.log_level,
+                from,
+                to,
+                &self.data[range.clone()],
+                self.current_operation.clone(),
+            ));
+        }
         self.data[range.clone()].fill(0xff);
         // inject stuck at 0 errors
         for i in range.clone() {
@@ -106,13 +113,15 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> NorFlash
             *byte |= self.stuck_at_1_bits[offset as usize + i];
             *byte &= !self.stuck_at_0_bits[offset as usize + i];
         }
-        self.transactions.push(Transaction::write(
-            self.log_level,
-            offset,
-            bytes,
-            &self.data[range],
-            self.current_operation.clone(),
-        ));
+        if self.log_level != TransactionLogLevel::None {
+            self.transactions.push(Transaction::write(
+                self.log_level,
+                offset,
+                bytes,
+                &self.data[range],
+                self.current_operation.clone(),
+            ));
+        }
         self.written += bytes.len();
         self.write_accesses += 1;
         Ok(())
