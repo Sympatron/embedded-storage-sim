@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+/// Controls how much information is recorded per storage operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransactionLogLevel {
     /// No transaction logging
@@ -14,6 +15,12 @@ pub enum TransactionLogLevel {
     Full,
 }
 
+/// A recorded storage operation emitted by the simulator.
+///
+/// Each variant may carry optional data depending on the active
+/// [`TransactionLogLevel`]. The generic parameter `O` is an optional
+/// user-defined operation tag to help correlate high-level actions with
+/// storage traffic.
 #[derive(Debug, Clone)]
 pub enum Transaction<O = ()> {
     Read {
@@ -36,6 +43,9 @@ pub enum Transaction<O = ()> {
     },
 }
 impl<O> Transaction<O> {
+    /// Construct a `Read` transaction based on the configured log level.
+    ///
+    /// When `level` is `ReadWriteData` or `Full`, the `data` buffer is captured.
     pub fn read(
         level: TransactionLogLevel,
         offset: u32,
@@ -54,6 +64,11 @@ impl<O> Transaction<O> {
             operation,
         }
     }
+    /// Construct a `Write` transaction based on the configured log level.
+    ///
+    /// The data being written is captured for `WriteDataOnly`, `ReadWriteData`
+    /// and `Full`. The resulting post-write contents (`after_write`) are only
+    /// captured for `Full`.
     pub fn write(
         level: TransactionLogLevel,
         offset: u32,
@@ -78,6 +93,9 @@ impl<O> Transaction<O> {
             operation,
         }
     }
+    /// Construct an `Erase` transaction based on the configured log level.
+    ///
+    /// For `Full`, the pre-erase data over the erased range is captured.
     pub fn erase(
         level: TransactionLogLevel,
         from: u32,

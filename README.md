@@ -1,4 +1,4 @@
-# embedded-storage-sim
+# Embedded storage simulation framework
 
 > [!WARNING]
 > This project is experimental and not production-ready.
@@ -55,9 +55,9 @@ Use buttons to start workloads. The GUI will show stats and page wear in real ti
 
 ## Workloads
 
-Includes example workloads built with sequential-storage:
-- Queue: push until full, then pop all.
-- Map: store random keys and remove them.
+Includes example workloads for [`sequential-storage`](https://github.com/tweedegolf/sequential-storage):
+- [`Queue`](https://docs.rs/sequential-storage/latest/sequential_storage/queue/index.html): push until full, then pop all.
+- [`Map`](https://docs.rs/sequential-storage/latest/sequential_storage/map/index.html): store random keys and remove them.
 
 ## License
 
