@@ -124,6 +124,7 @@ pub struct SimulatedNorFlash<
     read_accesses: usize,
     write_accesses: usize,
     erase_accesses: usize,
+    total_operations: usize,
     log_level: TransactionLogLevel,
     transactions: Vec<Transaction<O>>,
     rng: rand::rngs::SmallRng,
@@ -147,6 +148,7 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
             read_accesses: 0,
             write_accesses: 0,
             erase_accesses: 0,
+            total_operations: 0,
             log_level: TransactionLogLevel::None,
             transactions: Vec::new(),
             rng: rand::rngs::SmallRng::seed_from_u64(0),
@@ -171,8 +173,14 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
     pub fn set_logging(&mut self, level: TransactionLogLevel) {
         self.log_level = level;
     }
-    pub fn start_operation(&mut self, operation: Option<O>) {
-        self.current_operation = operation;
+    pub fn start_operation(&mut self, operation: O) {
+        self.current_operation = Some(operation);
+        self.total_operations += 1;
+    }
+    pub fn reset(&mut self) {
+        self.data.fill(0xFF);
+        self.reset_stats();
+        self.reset_failures();
     }
     pub fn reset_stats(&mut self) {
         self.read = 0;
@@ -181,13 +189,18 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
         self.read_accesses = 0;
         self.write_accesses = 0;
         self.erase_accesses = 0;
+        self.total_operations = 0;
         self.transactions.clear();
         self.page_cycles.fill(0);
+        self.current_operation = None;
     }
     pub fn reset_failures(&mut self) {
         self.stuck_at_0_bits.fill(0);
         self.stuck_at_1_bits.fill(0);
         self.page_cycles.fill(0);
+    }
+    pub fn size(&self) -> usize {
+        self.data.len()
     }
     pub fn bytes_read(&self) -> usize {
         self.read
@@ -198,8 +211,20 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
     pub fn pages_erased(&self) -> usize {
         self.erased / Self::ERASE_SIZE
     }
+    pub fn total_operations(&self) -> usize {
+        self.total_operations
+    }
     pub fn total_accesses(&self) -> usize {
         self.read_accesses + self.write_accesses + self.erase_accesses
+    }
+    pub fn read_time(&self, timings: &FlashTimings) -> fugit::NanosDurationU64 {
+        timings.read_time(self.read, self.read_accesses as u32)
+    }
+    pub fn write_time(&self, timings: &FlashTimings) -> fugit::NanosDurationU64 {
+        timings.write_time(self.written, self.write_accesses as u32)
+    }
+    pub fn erase_time(&self, timings: &FlashTimings) -> fugit::MillisDurationU64 {
+        timings.erase_time(self.erased / Self::ERASE_SIZE, self.erase_accesses as u32)
     }
     pub fn total_time(&self, timings: &FlashTimings) -> fugit::MillisDurationU64 {
         timings.total_time(
