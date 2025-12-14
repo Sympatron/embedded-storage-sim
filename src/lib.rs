@@ -14,6 +14,8 @@
 //! - Inspect statistics or compute timing estimates using `FlashTimings`.
 //! - Capture a `FlashSnapshot` for UI or diagnostics.
 
+use std::ops::{Add, Sub};
+
 use embedded_storage_async::nor_flash::{MultiwriteNorFlash, NorFlash, ReadNorFlash};
 use rand::SeedableRng;
 
@@ -79,18 +81,55 @@ impl FlashTimings {
         self.page_erase_time * pages as u32 + (self.erase_access_overhead * accesses).convert()
     }
     /// Combined estimate across reads, writes and erases.
-    pub fn total_time(
-        &self,
-        read_bytes: usize,
-        read_accesses: u32,
-        write_bytes: usize,
-        write_accesses: u32,
-        erased_pages: usize,
-        erase_accesses: u32,
-    ) -> fugit::MillisDurationU64 {
-        self.read_time(read_bytes, read_accesses).convert()
-            + self.write_time(write_bytes, write_accesses).convert()
-            + self.erase_time(erased_pages, erase_accesses)
+    pub fn total_time(&self, stats: &FlashStats) -> fugit::NanosDurationU64 {
+        self.read_time(stats.bytes_read, stats.read_accesses as u32)
+            + self.write_time(stats.bytes_written, stats.write_accesses as u32)
+            + self
+                .erase_time(stats.pages_erased, stats.erase_accesses as u32)
+                .convert()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct FlashStats {
+    pub bytes_read: usize,
+    pub bytes_written: usize,
+    pub pages_erased: usize,
+    pub read_accesses: usize,
+    pub write_accesses: usize,
+    pub erase_accesses: usize,
+    pub total_operations: usize,
+}
+impl Add<&FlashStats> for &FlashStats {
+    type Output = FlashStats;
+
+    #[inline]
+    fn add(self, other: &FlashStats) -> FlashStats {
+        FlashStats {
+            bytes_read: self.bytes_read + other.bytes_read,
+            bytes_written: self.bytes_written + other.bytes_written,
+            pages_erased: self.pages_erased + other.pages_erased,
+            read_accesses: self.read_accesses + other.read_accesses,
+            write_accesses: self.write_accesses + other.write_accesses,
+            erase_accesses: self.erase_accesses + other.erase_accesses,
+            total_operations: self.total_operations + other.total_operations,
+        }
+    }
+}
+impl Sub<&FlashStats> for &FlashStats {
+    type Output = FlashStats;
+
+    #[inline]
+    fn sub(self, other: &FlashStats) -> FlashStats {
+        FlashStats {
+            bytes_read: self.bytes_read - other.bytes_read,
+            bytes_written: self.bytes_written - other.bytes_written,
+            pages_erased: self.pages_erased - other.pages_erased,
+            read_accesses: self.read_accesses - other.read_accesses,
+            write_accesses: self.write_accesses - other.write_accesses,
+            erase_accesses: self.erase_accesses - other.erase_accesses,
+            total_operations: self.total_operations - other.total_operations,
+        }
     }
 }
 
@@ -185,6 +224,7 @@ pub struct SimulatedNorFlash<
     minimum_safe_erase_cycles: u32,
     bit_failure_every_x_erases: u32,
     current_operation: Option<O>,
+    last_operation_stats: FlashStats,
 }
 
 impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFlash<O, RS, WS, ES> {
@@ -212,6 +252,7 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
             minimum_safe_erase_cycles: u32::MAX,
             bit_failure_every_x_erases: u32::MAX,
             current_operation: None,
+            last_operation_stats: Default::default(),
         }
     }
     /// Create a flash and configure failure model and RNG seed.
@@ -244,6 +285,10 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
     pub fn start_operation(&mut self, operation: O) {
         self.current_operation = Some(operation);
         self.total_operations += 1;
+        self.last_operation_stats = self.stats();
+    }
+    pub fn last_operation_stats(&self) -> FlashStats {
+        &self.stats() - &self.last_operation_stats
     }
     /// Erase all data and clear statistics and injected failures.
     pub fn reset(&mut self) {
@@ -277,6 +322,17 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
     /// Number of erase units (pages) in the flash.
     pub fn page_count(&self) -> usize {
         self.page_cycles.len()
+    }
+    pub fn stats(&self) -> FlashStats {
+        FlashStats {
+            bytes_read: self.read,
+            bytes_written: self.written,
+            pages_erased: self.erased / Self::ERASE_SIZE,
+            read_accesses: self.read_accesses,
+            write_accesses: self.write_accesses,
+            erase_accesses: self.erase_accesses,
+            total_operations: self.total_operations,
+        }
     }
     /// Total amount of bytes read since last stats reset.
     pub fn bytes_read(&self) -> usize {
@@ -312,14 +368,7 @@ impl<O: Clone, const RS: usize, const WS: usize, const ES: usize> SimulatedNorFl
     }
     /// Estimate total time across all operations based on stats.
     pub fn total_time(&self, timings: &FlashTimings) -> fugit::MillisDurationU64 {
-        timings.total_time(
-            self.read,
-            self.read_accesses as u32,
-            self.written,
-            self.write_accesses as u32,
-            self.erased / Self::ERASE_SIZE,
-            self.erase_accesses as u32,
-        )
+        timings.total_time(&self.stats()).convert()
     }
     /// View the recorded transaction log.
     pub fn transactions(&self) -> &[Transaction<O>] {
