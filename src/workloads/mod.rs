@@ -6,6 +6,7 @@ pub enum Operation {
     QueuePop,
     MapStore,
     MapRemove,
+    #[allow(dead_code)]
     MapFetch,
 }
 impl ToString for Operation {

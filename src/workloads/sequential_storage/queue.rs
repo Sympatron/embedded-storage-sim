@@ -5,6 +5,7 @@ use crate::workloads::Operation;
 
 pub fn queue_push_full_and_pop_all<'a, F, const RS: usize, const WS: usize, const ES: usize>(
     flash: &'a mut SimulatedNorFlash<Operation, RS, WS, ES>,
+    run_count: usize,
     mut hook: F,
 ) -> BoxFuture<'a, anyhow::Result<()>>
 where
@@ -20,7 +21,7 @@ where
 
         const N: usize = 16;
 
-        for _ in 0..10 {
+        for _ in 0..run_count {
             let mut count = 100000;
             for i in 0..count {
                 queue.flash().start_operation(Operation::QueuePush);

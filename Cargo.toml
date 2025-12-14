@@ -13,6 +13,9 @@ sequential-storage = { git = "https://github.com/tweedegolf/sequential-storage.g
 eframe = { version = "0.33.3", optional = true, features = ["wgpu"] }
 futures = { version = "0.3.31", optional = true, features = ["std"] }
 anyhow = { version = "1.0.100", optional = true }
+egui_plot = "0.34.0"
+egui_tiles = "0.14.0"
+egui_alignments = { git = "https://github.com/a-littlebit/egui_alignments.git", branch = "master" }
 
 [features]
 default = ["sequential-storage", "gui"]
